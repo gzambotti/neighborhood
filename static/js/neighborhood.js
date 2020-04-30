@@ -1,20 +1,62 @@
+// code by Giovanni Zambotti - 30 April 2020
+// ESRI JS 4.15
+
 require([
         "esri/WebMap",
         "esri/views/MapView",
+        "esri/widgets/Search",
         "esri/layers/GraphicsLayer",
         "esri/widgets/Sketch/SketchViewModel",
         "esri/views/layers/support/FeatureFilter",
         "esri/geometry/geometryEngine",
-        "esri/Graphic"
+        "esri/Graphic",
+        "esri/symbols/SimpleFillSymbol",
+        "esri/symbols/SimpleLineSymbol"
       ], function(
-        WebMap,MapView,GraphicsLayer,SketchViewModel,FeatureFilter,geometryEngine,Graphic) {
+        WebMap,MapView,Search, GraphicsLayer,SketchViewModel,FeatureFilter,geometryEngine,Graphic, SimpleFillSymbol,SimpleLineSymbol) {
         
-        let foo = [];
+        let geoidarray = [];
+
+        const neighbor = {"attributes":{
+          sessionID:"",
+          geoid:"",
+          lat:"",
+          lon:""
+        }};
+
+        Date.prototype.IsoNum = function (n) {
+          var tzoffset = this.getTimezoneOffset() * 60000; //offset in milliseconds
+          var localISOTime = (new Date(this - tzoffset)).toISOString().slice(0,-1);
+          return localISOTime.replace(/[-T:\.Z]/g, "").substring(0,n || 20); // YYYYMMDD
+        };
+
+        let timeX = new Date();
+        let time = timeX.IsoNum(14);
+        // generate time
+        let hash = function(s){    
+          if (typeof(s) == "number" && s === parseInt(s, 10)){
+              s = Array(s + 1).join("x");
+          }
+          return s.replace(/x/g, function(){
+              let n = Math.round(Math.random() * 61) + 48;
+              n = n > 57 ? (n + 7 > 90 ? n + 13 : n + 7) : n;
+              return String.fromCharCode(n);
+          });
+        };
+      
+        let userhash = hash(10);                
+        neighbor.attributes.sessionID = userhash;
+
+        // add a GraphicsLayer for the sketches and the buffer
+        let sketchLayer = new GraphicsLayer();        
+        
+        //view.map.addMany([sketchLayer]);
 
         const webmap = new WebMap({
           portalItem:{
             id: "8e5ebb87041a43f7a44f793e908e7c67"
-          }
+          },
+          layers: [sketchLayer]
         })
         
         const view = new MapView({
@@ -22,18 +64,32 @@ require([
           map: webmap
         });
 
-        // add a GraphicsLayer for the sketches and the buffer
-        let sketchLayer = new GraphicsLayer();
-        let bufferLayer = new GraphicsLayer();
+        const searchWidget = new Search({
+          view: view
+        });
+
+        // Add the search widget to the top right corner of the view
+        view.ui.add(searchWidget, {
+          position: "top-right"
+        });
         
-        view.map.addMany([bufferLayer, sketchLayer]);
+        searchWidget.on("select-result", function(event){          
+          //let pt = event.result.feature.geometry.getCentroid();  
+          //webmap.centerAndZoom(pt, 2); //Change this to suit your needs
+          console.log("The selected search result: ", event.result.name);
+          console.log(event.result)
+          view.center = [event.result.feature.geometry.longitude, event.result.feature.geometry.latitude];  // Sets the center point of the view at a specified lon/lat
+          view.zoom = 12;  // Sets the zoom LOD to 13
+        });
+               
 
         // set the outFields for the layer coming from webmap
         webmap.when(function () {
           //console.log("test")
-          //console.log(webmap.layers)
-          layer = webmap.layers.getItemAt(2);
-          layer.outFields = ["FIPS","BLKGRP"];
+          console.log(webmap.layers)
+          layer = webmap.layers.getItemAt(1);
+          layer.outFields = ["FIPS","BLKGRP"];          
+          webmap.layers.reorder(layer, 0)
         });
 
         // create the layerView's to add the filter
@@ -50,15 +106,23 @@ require([
               }).catch(console.error);
           });
         });
+
+        
         
         // use SketchViewModel to draw polygons that are used as a filter
         let sketchGeometry = null;
         const sketchViewModel = new SketchViewModel({
           layer: sketchLayer,
           view: view,          
-          /*polygonSymbol: {
-            //type: "polygon-3d",
-            type: "polygon",
+          polygonSymbol: {
+            type: "simple-fill",  // autocasts as new SimpleFillSymbol()
+            color: [51,0,0,0.3],
+            style: "backward-diagonal",
+            outline: {  // autocasts as new SimpleLineSymbol()
+              color: "red",
+              width: 2
+            }
+            /*type: "polygon-3d",            
             symbolLayers: [
               {
                 type: "fill",
@@ -70,8 +134,8 @@ require([
                   size: "8px"
                 }
               }
-            ]
-          },*/
+            ]*/
+          },
           defaultCreateOptions: { hasZ: false }
         });
 
@@ -124,14 +188,14 @@ require([
           sketchGeometry = null;
           filterGeometry = null;
           sketchLayer.removeAll();
-          bufferLayer.removeAll();          
+          //bufferLayer.removeAll();          
           featureLayerView.filter = null;
         }
 
         
         // set the geometry filter on the visible FeatureLayerView
         function updateFilter() {
-          foo = [];
+          geoidarray = [];
           updateFilterGeometry();
           featureFilter = {
             // autocasts to FeatureFilter
@@ -149,14 +213,14 @@ require([
                 console.log(results.features.length);
                 results.features.forEach(element => {
                   console.log(element.attributes.FIPS)
-                  foo.push(element.attributes.FIPS)
+                  geoidarray.push(element.attributes.FIPS)
                 });
               });
             } else {
               featureLayerView.filter = null;
             }
           }
-          console.log(foo)
+          console.log(geoidarray)
         }
 
         // update the filter geometry depending on bufferSize
@@ -164,9 +228,16 @@ require([
         function updateFilterGeometry() {
           // add a polygon graphic for the bufferSize
           if (sketchGeometry) {
-            bufferLayer.removeAll();
+            //bufferLayer.removeAll();
             filterGeometry = sketchGeometry;            
           }
         }
         document.getElementById("infoDiv").style.display = "block";
+
+        document.getElementById("submitResult").addEventListener("click", function(){
+          neighbor.attributes.geoid = geoidarray;
+          console.log(JSON.stringify(neighbor))  
+        });
+
+        
       });
