@@ -1,28 +1,47 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no"/>
-    <title>Neighborhood Survey</title>    
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>Neighborhood Survey</title>
+    <style>
+      
+    </style>
+
     <link rel="stylesheet" href="https://js.arcgis.com/4.15/esri/themes/light/main.css"/>
-    
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/neighborhood.css') }}"></script> 
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/neighborhood.css') }}"/>
 
   </head>
 
   <body>
     <div id="viewDiv"></div>
     <div id="infoDiv" class="esri-widget">
-      <br />Draw a polygon to select the census block close to you:
+      Step 1: Search for your address:
+      <br/>
+      <div id="searchDiv"></div>
+      <br/>
+      Step 2: Draw a polygon to select the census block close to you. If you need to modify your selection, double click over the polygon to enable editing. Click "Clear Selection" to start over.
       <div class="geometry-options">        
         <button class="esri-widget--button esri-icon-polygon geometry-button" id="polygon-geometry-button" value="polygon"
-          title="Filter by polygon"
+          title="Select by polygon"
         ></button>
       </div>
       <br />
       <button class="esri-button" id="clearFilter" type="button">Clear selection</button>
+      <br />
+      Step 3: Answer the following questions:
+      <form>
+        <label for="q1">Question 1:</label><br>
+        <input type="text" id="q1" name="q1"><br>
+        <label for="q2">Question 2:</label><br>
+        <input type="text" id="q2" name="q2">
+      </form>
+      Step 4: Submit your data. You can submit only one time.
+      <button class="esri-button" id="submitResult" type="button">Submit</button>
     </div>
     <script src="https://js.arcgis.com/4.15/"></script> 
-    
-    <script type="text/javascript" src="{{ url_for('static', filename='js/neighborhood.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/neighborhood.js') }}"> </script>
   </body>
 </html>

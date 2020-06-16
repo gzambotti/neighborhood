@@ -16,13 +16,13 @@ require([
         WebMap,MapView,Search, GraphicsLayer,SketchViewModel,FeatureFilter,geometryEngine,Graphic, SimpleFillSymbol,SimpleLineSymbol) {
         
         let geoidarray = [];
-
-        const neighbor = {"attributes":{
-          sessionID:"",
+        
+        const neighbor = {
+          sessionid:"",
           geoid:"",
-          lat:"",
-          lon:""
-        }};
+          address:"",
+          datetime:""
+        };
 
         Date.prototype.IsoNum = function (n) {
           var tzoffset = this.getTimezoneOffset() * 60000; //offset in milliseconds
@@ -32,6 +32,8 @@ require([
 
         let timeX = new Date();
         let time = timeX.IsoNum(14);
+        neighbor.datetime = timeX.toString();
+
         // generate time
         let hash = function(s){    
           if (typeof(s) == "number" && s === parseInt(s, 10)){
@@ -45,7 +47,7 @@ require([
         };
       
         let userhash = hash(10);                
-        neighbor.attributes.sessionID = userhash;
+        neighbor.sessionid = userhash;
 
         // add a GraphicsLayer for the sketches and the buffer
         let sketchLayer = new GraphicsLayer();        
@@ -65,18 +67,20 @@ require([
         });
 
         const searchWidget = new Search({
-          view: view
+          view: view,
+          container: "searchDiv"
         });
 
         // Add the search widget to the top right corner of the view
-        view.ui.add(searchWidget, {
+        /*view.ui.add(searchWidget, {
           position: "top-right"
         });
-        
+        */
         searchWidget.on("select-result", function(event){          
           //let pt = event.result.feature.geometry.getCentroid();  
           //webmap.centerAndZoom(pt, 2); //Change this to suit your needs
           console.log("The selected search result: ", event.result.name);
+          neighbor.address = event.result.name;
           console.log(event.result)
           view.center = [event.result.feature.geometry.longitude, event.result.feature.geometry.latitude];  // Sets the center point of the view at a specified lon/lat
           view.zoom = 12;  // Sets the zoom LOD to 13
@@ -113,14 +117,14 @@ require([
         let sketchGeometry = null;
         const sketchViewModel = new SketchViewModel({
           layer: sketchLayer,
-          view: view,          
+          view: view,   
           polygonSymbol: {
             type: "simple-fill",  // autocasts as new SimpleFillSymbol()
-            color: [51,0,0,0.3],
+            color: [51,0,0,0],
             style: "backward-diagonal",
             outline: {  // autocasts as new SimpleLineSymbol()
               color: "red",
-              width: 2
+              width: 1.2
             }
             /*type: "polygon-3d",            
             symbolLayers: [
@@ -139,7 +143,10 @@ require([
           defaultCreateOptions: { hasZ: false }
         });
 
-        sketchViewModel.on(["create"], function(event) {
+        //sketchViewModel.create("polygon", {mode: "click"});
+
+
+        sketchViewModel.on(["create"], function(event) {         
           // update the filter every time the user finishes drawing the filtergeometry
           if (event.state == "complete") {
             sketchGeometry = event.graphic.geometry;
@@ -212,7 +219,7 @@ require([
                 // prints the array of result graphics to the console
                 console.log(results.features.length);
                 results.features.forEach(element => {
-                  console.log(element.attributes.FIPS)
+                  //console.log(element.attributes.FIPS)
                   geoidarray.push(element.attributes.FIPS)
                 });
               });
@@ -235,8 +242,16 @@ require([
         document.getElementById("infoDiv").style.display = "block";
 
         document.getElementById("submitResult").addEventListener("click", function(){
-          neighbor.attributes.geoid = geoidarray;
-          console.log(JSON.stringify(neighbor))  
+          neighbor.geoid = geoidarray;
+          console.log(JSON.stringify(neighbor))
+          let xmlhttp = new XMLHttpRequest();   // new HttpRequest instance 
+          xmlhttp.open("POST", "/survey");
+          xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+          console.log(xmlhttp)
+          xmlhttp.send(JSON.stringify(neighbor));
+          
+          let win = window.open("https://google.com", '_blank');
+          win.focus();          
         });
 
         
